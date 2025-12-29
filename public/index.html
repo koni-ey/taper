@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Taper</title>
+    <link rel="stylesheet" href="/app.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Work+Sans:wght@300;400;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">Taper</div>
+            <div class="actions">
+                <button id="edit-btn" class="icon-btn" title="Edit Tape">✎</button>
+                <button id="raw-btn" class="icon-btn" title="Raw Markdown">📝</button>
+                <button id="share-btn" class="icon-btn" title="Share Tape">🔗</button>
+            </div>
+        </header>
+
+        <main>
+
+            <!-- Raw Editor View -->
+            <div id="raw-view" class="view-container hidden">
+                <textarea id="tape-editor" spellcheck="false" placeholder="# My Tape..."></textarea>
+            </div>
+
+            <!-- Main View (Always Visible, Edit Mode applied internally) -->
+            <div id="player-view" class="view-container">
+                <div id="tape-content" class="tape-content">
+                    <!-- Dynamic Content -->
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Player Bar -->
+        <div id="player-bar" class="player-bar hidden">
+            <!-- Progress Bar -->
+            <input type="range" id="progress-bar" class="progress-bar" value="0" min="0" step="1">
+
+            <div class="player-content">
+                <!-- Info -->
+                <div class="track-info">
+                    <div id="now-playing" class="now-playing">Select a song...</div>
+                    <div class="time-display">
+                        <span id="current-time">0:00</span>
+                        <span>/</span>
+                        <span id="duration">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="controls">
+                    <button id="prev-btn" class="control-btn" title="Previous">⏮</button>
+                    <button id="play-btn" class="control-btn play-btn" title="Play/Pause">▶</button>
+                    <button id="next-btn" class="control-btn" title="Next">⏭</button>
+                </div>
+
+                <!-- Spotify Connect -->
+                <div id="spotify-connect" class="spotify-connect"></div>
+            </div>
+        </div>
+
+        <!-- Hidden container for player iframes -->
+        <div id="hidden-embed" class="hidden-embed"></div>
+    </div>
+    <script type="module" src="/index.js"></script>
+</body>
+
+</html>

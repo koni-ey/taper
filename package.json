@@ -1,0 +1,16 @@
+{
+  "name": "taper",
+  "module": "public/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "bun build ./src/index.ts --outdir ./public --watch & bun run server.ts",
+    "build": "bun build ./src/index.ts --outdir ./public --minify",
+    "start": "bun run server.ts"
+  },
+  "devDependencies": {
+    "bun-types": "latest"
+  },
+  "dependencies": {
+    "marked": "^17.0.1"
+  }
+}
