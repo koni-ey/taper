@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Work Sans', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+
+  --color-bg: #f4f4f0;
+  --color-text: #2b2b2b;
+  --color-accent: #ff5e5e;
+  --color-border: #2b2b2b;
+
+  --shadow-hard: 4px 4px 0px rgba(0, 0, 0, 0.1);
+  --shadow-hard-hover: 2px 2px 0px rgba(0, 0, 0, 0.2);
+}
+
+@layer base {
+  :root {
+    /* Legacy variable support if needed */
+    --bg-color: var(--color-bg);
+  }
+
+  body {
+    @apply bg-bg text-text font-sans h-screen flex flex-col;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-mono;
+  }
+}
+
+@layer utilities {
+  .font-mono {
+    font-family: 'Space Mono', monospace;
+  }
+}
+
+@layer components {
+  .prose p {
+    @apply mb-4 leading-relaxed;
+  }
+
+  .prose h1 {
+    @apply text-2xl font-bold mb-4 mt-6;
+  }
+
+  .prose h2 {
+    @apply text-xl font-bold mb-3 mt-5;
+  }
+
+  .prose h3 {
+    @apply text-lg font-bold mb-2 mt-4;
+  }
+
+  .prose ul {
+    @apply list-disc list-inside mb-4;
+  }
+
+  .prose ol {
+    @apply list-decimal list-inside mb-4;
+  }
+
+  .prose a {
+    @apply text-blue-600 underline;
+  }
+
+  .prose blockquote {
+    @apply border-l-4 border-gray-300 pl-4 italic my-4;
+  }
+
+  .prose pre {
+    @apply bg-gray-100 p-4 rounded-lg mb-4 overflow-x-auto;
+  }
+
+  .prose code {
+    @apply font-mono bg-gray-100 px-1 py-0.5 rounded text-sm;
+  }
+
+  .prose hr {
+    @apply my-8 border-gray-200;
+  }
+
+  .prose img {
+    @apply rounded-lg my-4 max-w-full;
+  }
+}
