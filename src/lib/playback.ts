@@ -1,7 +1,16 @@
+/**
+ * Playback Controller.
+ * Manages the logic for playing, pausing, seeking, and navigating between tracks
+ * across different providers (YouTube, Spotify, SoundCloud).
+ */
+
 import type { Cell } from './types';
 import { appState } from './state.svelte';
-import { initYoutubePlayer, initSoundCloudPlayer, initAudioPlayer, initSpotifySdkPlayer } from './players';
+import { initYoutubePlayer, initSoundCloudPlayer, initAudioPlayer } from './players';
 
+/**
+ * Starts playback of a specific cell at the given index.
+ */
 export function startPlayer(index: number) {
     if (index < 0 || index >= appState.cells.length) return;
     const cell = appState.cells[index];
@@ -21,6 +30,9 @@ export function startPlayer(index: number) {
     startProgressLoop();
 }
 
+/**
+ * Stops (pauses) the currently playing track.
+ */
 export function stopCurrentPlayer() {
     stopProgressLoop();
     if (appState.currentIndex < 0) return;
@@ -36,6 +48,9 @@ export function stopCurrentPlayer() {
     } catch (e) { console.warn(e); }
 }
 
+/**
+ * Toggles between play and pause states for the current track.
+ */
 export function togglePlayPause() {
     if (appState.currentIndex < 0) {
         const firstSong = appState.cells.findIndex(c => c.type === 'song');
@@ -63,6 +78,9 @@ export function togglePlayPause() {
     }
 }
 
+/**
+ * Seeks to a specific timestamp in the current track.
+ */
 export async function seekTo(seconds: number) {
     if (appState.currentIndex < 0) return;
     
@@ -85,6 +103,9 @@ export async function seekTo(seconds: number) {
     } catch (e) { console.warn('Seek error:', e); }
 }
 
+/**
+ * Skips to the next song in the tape.
+ */
 export function playNext() {
     const songIndices = appState.cells
         .map((c, i) => c.type === 'song' ? i : -1)
@@ -96,12 +117,16 @@ export function playNext() {
     if (nextPos < songIndices.length) {
         startPlayer(songIndices[nextPos]);
     } else {
+        // End of tape
         stopCurrentPlayer();
         appState.setIsPlaying(false);
         appState.setCurrentIndex(-1);
     }
 }
 
+/**
+ * Skips to the previous song in the tape.
+ */
 export function playPrev() {
     const songIndices = appState.cells
         .map((c, i) => c.type === 'song' ? i : -1)
@@ -115,7 +140,8 @@ export function playPrev() {
     }
 }
 
-// Helpers
+// Internal Provider Starters
+
 function startYouTube(cell: Cell) {
     let player = appState.playerInstances[cell.id];
     if (!player) {
@@ -144,6 +170,11 @@ function startMp3(cell: Cell) {
     player.play();
 }
 
+/**
+ * Internal helper to command the Spotify Web Playback SDK via the Web API.
+ * The SDK itself doesn't have a direct 'load track' method that works for all devices,
+ * so we use the 'play' endpoint with the specific device ID.
+ */
 async function playSpotifySdk(uri: string) {
     if (!appState.spotify.token || !appState.spotify.deviceId) return;
     await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${appState.spotify.deviceId}`, {
@@ -157,6 +188,11 @@ async function playSpotifySdk(uri: string) {
 }
 
 let progressFrame: number;
+
+/**
+ * High-frequency loop using requestAnimationFrame to update playback progress (current time/total time).
+ * Polling is used because not all player APIs provide consistent progress events.
+ */
 function startProgressLoop() {
     cancelAnimationFrame(progressFrame);
     const update = async () => {
@@ -190,14 +226,7 @@ function startProgressLoop() {
                     total = audio.duration;
                 }
             }
-             // SoundCloud
-             else if (cell.provider === 'soundcloud') {
-                 const sc = player as any;
-                 // SC Widget getPosition is async. We can't really do it in a tight loop easily without callback hell.
-                 // Ideally we bind to 'playProgress' event instead of polling.
-                 // But for parity let's try a simple poll if possible or skip.
-                 // SC widget api is event based mostly.
-             }
+             // Note: SoundCloud progress is handled via event bindings in initSoundCloudPlayer
         } catch(e) {}
 
         if (total > 0) {
@@ -212,6 +241,9 @@ function startProgressLoop() {
     update();
 }
 
+/**
+ * Stops the progress polling loop.
+ */
 function stopProgressLoop() {
     cancelAnimationFrame(progressFrame);
 }

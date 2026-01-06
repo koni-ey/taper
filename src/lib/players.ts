@@ -1,19 +1,31 @@
+/**
+ * Player Initializers.
+ * Handles the creation and mounting of specific music player instances (YouTube, SoundCloud, Spotify, Audio).
+ * These players are often mounted to a hidden container to allow unified control via the Taper UI.
+ */
+
 import type { Cell } from './types';
 import { appState } from './state.svelte';
 import { playNext } from './playback';
 
-// We need a place to mount hidden players
-// This will be set by the UI component
+/**
+ * Global reference to the hidden container where player elements (iframes, etc.) are mounted.
+ */
 let playerContainer: HTMLElement | null = null;
 
+/**
+ * Sets the element used for mounting player SDK components.
+ */
 export function setPlayerContainer(element: HTMLElement) {
     playerContainer = element;
 }
 
+/**
+ * Initializes a YouTube IFrame Player for a specific cell.
+ */
 export function initYoutubePlayer(cell: Cell, videoId: string) {
     if (!playerContainer) return;
 
-    // Check if element already exists (re-hydration or previous init)
     let div = document.getElementById(`yt-player-${cell.id}`);
     if (!div) {
         div = document.createElement('div');
@@ -41,10 +53,9 @@ export function initYoutubePlayer(cell: Cell, videoId: string) {
         },
         events: {
             onReady: (event: any) => {
-                // Fetch metadata if missing
+                // Auto-fetch metadata if missing
                 const data = event.target.getVideoData();
                 if (data && data.title && (!cell.title || cell.title === 'Loading...')) {
-                    // Update state directly - Svelte will update UI
                     const idx = appState.cells.findIndex(c => c.id === cell.id);
                     if (idx !== -1) {
                         appState.cells[idx].title = data.title;
@@ -52,13 +63,13 @@ export function initYoutubePlayer(cell: Cell, videoId: string) {
                     }
                 }
 
-                // Auto-play if current
+                // Auto-play if this is the current active cell
                 if (appState.cells[appState.currentIndex]?.id === cell.id && appState.isPlaying) {
                     event.target.playVideo();
                 }
             },
             onStateChange: (event: any) => {
-                if (event.data === 0) { // ENDED
+                if (event.data === 0) { // 0 = YT.PlayerState.ENDED
                     playNext();
                 }
             }
@@ -68,6 +79,10 @@ export function initYoutubePlayer(cell: Cell, videoId: string) {
     appState.setPlayerInstance(cell.id, player);
 }
 
+/**
+ * Initializes a SoundCloud Widget Player for a specific cell.
+ * Uses a hidden iframe and the SoundCloud Widget API.
+ */
 export function initSoundCloudPlayer(cell: Cell) {
     if (!playerContainer) return;
 
@@ -87,10 +102,9 @@ export function initSoundCloudPlayer(cell: Cell) {
     // @ts-ignore
     const widget = SC.Widget(iframe);
 
-    // Bind ALL event listeners BEFORE any playback
+    // Bind event listeners
     // @ts-ignore
     widget.bind(SC.Widget.Events.READY, () => {
-        // Get metadata
         widget.getCurrentSound((sound: any) => {
             if (sound) {
                 const idx = appState.cells.findIndex(c => c.id === cell.id);
@@ -101,18 +115,15 @@ export function initSoundCloudPlayer(cell: Cell) {
             }
         });
 
-        // Get duration
         widget.getDuration((duration: number) => {
             if (appState.cells[appState.currentIndex]?.id === cell.id) {
                 appState.progress.total = duration / 1000;
             }
         });
 
-        // Start playback after bindings are set
         widget.play();
     });
 
-    // Handle progress updates
     // @ts-ignore
     widget.bind(SC.Widget.Events.PLAY_PROGRESS, (data: any) => {
         if (appState.cells[appState.currentIndex]?.id === cell.id) {
@@ -128,6 +139,10 @@ export function initSoundCloudPlayer(cell: Cell) {
     appState.setPlayerInstance(cell.id, widget);
 }
 
+/**
+ * Initializes the Spotify Web Playback SDK.
+ * Unlike other players, there is only one Spotify Player instance for the whole app.
+ */
 export function initSpotifySdkPlayer() {
     if (!appState.spotify.token) return;
     if (appState.spotify.player) return; // Idempotency check
@@ -143,7 +158,6 @@ export function initSpotifySdkPlayer() {
     });
 
     player.addListener('ready', ({ device_id }: any) => {
-        console.log('Spotify Ready', device_id);
         appState.spotify.deviceId = device_id;
         appState.spotify.isReady = true;
     });
@@ -151,12 +165,11 @@ export function initSpotifySdkPlayer() {
     player.addListener('player_state_changed', (state: any) => {
         if (!state) return;
 
-        // Update metadata
+        // Sync metadata from Spotify's current state
         if (appState.currentIndex >= 0 && appState.cells[appState.currentIndex]?.provider === 'spotify') {
             const track = state.track_window?.current_track;
             if (track) {
                 const newTitle = `${track.name} - ${track.artists.map((a: any) => a.name).join(', ')}`;
-                // Only update if changed to avoid loops
                 const currentTitle = appState.cells[appState.currentIndex].title;
                 if (currentTitle !== newTitle) {
                     appState.cells[appState.currentIndex].title = newTitle;
@@ -165,7 +178,7 @@ export function initSpotifySdkPlayer() {
             }
         }
 
-        // End of track detection
+        // Detect end of track
         if (state.paused && state.position === 0 && state.track_window?.previous_tracks?.length > 0) {
             playNext();
         }
@@ -175,6 +188,9 @@ export function initSpotifySdkPlayer() {
     appState.spotify.player = player;
 }
 
+/**
+ * Simple HTML5 Audio player for direct MP3 links.
+ */
 export function initAudioPlayer(cell: Cell): HTMLAudioElement {
     const audio = new Audio(cell.content);
     audio.preload = 'metadata';

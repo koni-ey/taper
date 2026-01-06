@@ -1,47 +1,90 @@
-# Svelte + TS + Vite
+# 📼 Taper
 
-This template should help get you started developing with Svelte and TypeScript in Vite.
+**Taper** is a modern, markdown-based music playlist generator and player. It allows you to create rich, text-heavy playlists (or "tapes") that mix storytelling with music from **Spotify**, **YouTube**, and **SoundCloud**.
 
-## Recommended IDE Setup
+Built with **Svelte 5**, Taper is fast, lightweight, and entirely client-side. Your tapes are stored in the URL hash, making them easy to share without a backend.
 
-[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
+## ✨ Features
 
-## Need an official Svelte framework?
+- **Markdown First**: Create playlists by writing markdown and pasting song URLs.
+- **Multi-Provider**: Unified playback for Spotify, YouTube, and SoundCloud.
+- **Zero-Backend**: Tapes are serialized into the URL hash. Share your playlists by simply copying the URL.
+- **Drag & Drop**: Intuitive interface for reordering your tape.
+- **Raw Mode**: Edit the underlying markdown directly for power users.
+- **Exportable**: Download your tapes as standard `.md` files.
 
-Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
+## 🚀 Getting Started
 
-## Technical considerations
+### Prerequisites
 
-**Why use this over SvelteKit?**
+- Node.js (v18+)
+- A Spotify Premium account (for Spotify playback integration)
 
-- It brings its own routing solution which might not be preferable for some users.
-- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
+### Installation
 
-This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/koni-ey/taper.git
+   cd taper
+   ```
 
-Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
+3. Set up environment variables:
+   Copy `.env.example` to `.env` and fill in your Spotify credentials.
+   ```bash
+   cp .env.example .env
+   ```
 
-Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-**Why include `.vscode/extensions.json`?**
+## 🎵 Spotify Integration
 
-Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
+To use Spotify playback, you'll need to create an application in the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
 
-**Why enable `allowJs` in the TS template?**
+1. Create a new App.
+2. Add `http://localhost:3000/` (or your production URL) to the **Redirect URIs**.
+3. Copy the **Client ID** into your `.env` file.
 
-While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
+*Note: Spotify playback requires a Spotify Premium account due to SDK limitations.*
 
-**Why is HMR not preserving my local component state?**
+## 🛠️ Tech Stack
 
-HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
+- **Framework**: [Svelte 5](https://svelte.dev/)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Icons**: [Lucide Svelte](https://lucide.dev/)
+- **Markdown**: [Marked](https://marked.js.org/)
 
-If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
+## 📜 Markdown Format
 
-```ts
-// store.ts
-// An extremely simple external store
-import { writable } from 'svelte/store'
-export default writable(0)
+Taper uses a simple format where blocks are separated by `---`.
+
+```markdown
+# My Summer Tape
+This is some introductory text about my playlist.
+
+---
+song: https://open.spotify.com/track/4omurqpm7aWH9VVz2Ii4yO
+---
+
+## Interlude
+You can use any markdown here, including images and links.
+
+---
+song: https://www.youtube.com/watch?v=dQw4w9WgXcQ
 ```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.
