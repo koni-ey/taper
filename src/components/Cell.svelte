@@ -4,7 +4,7 @@
     import { appState } from "../lib/state.svelte";
     import { startPlayer, togglePlayPause } from "../lib/playback";
     import { fetchMetadata } from "../lib/metadata";
-    import { Play, Pause, Trash2, ExternalLink } from "lucide-svelte";
+    import { Play, Pause, Trash2, ExternalLink, Check } from "lucide-svelte";
 
     let {
         cell,
@@ -110,6 +110,7 @@
                                 placeholder="Paste Song URL (YouTube, Spotify, SoundCloud)..."
                                 autofocus
                                 onblur={save}
+                                onmousedown={(e) => e.stopPropagation()}
                                 onkeydown={(e) => {
                                     if (e.key === "Enter") {
                                         save();
@@ -126,6 +127,7 @@
                             use:autoresize
                             autofocus
                             onblur={save}
+                            onmousedown={(e) => e.stopPropagation()}
                             onkeydown={(e) => {
                                 if (e.key === "Enter" && e.altKey) {
                                     save();
@@ -133,17 +135,31 @@
                             }}
                         ></textarea>
                     {/if}
-                    <!-- Delete button in edit mode -->
-                    <button
-                        class="self-start flex items-center gap-1 px-2 py-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                        onclick={(e) => {
-                            e.stopPropagation();
-                            onDelete();
-                        }}
-                    >
-                        <Trash2 size={14} />
-                        Delete
-                    </button>
+                    <!-- Edit actions -->
+                    <div class="flex items-center gap-2">
+                        <button
+                            class="flex items-center justify-center p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                            title="Delete"
+                            onmousedown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onDelete();
+                            }}
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                        <button
+                            class="flex items-center justify-center p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors"
+                            title="Done"
+                            onmousedown={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                save();
+                            }}
+                        >
+                            <Check size={16} />
+                        </button>
+                    </div>
                 </div>
             {:else if cell.type === "markdown"}
                 <div
