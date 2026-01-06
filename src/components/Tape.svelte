@@ -4,36 +4,14 @@
     import { parseTape, serializeCells, generateId } from "../lib/parser";
     import CellComponent from "./Cell.svelte";
     import AddBar from "./AddBar.svelte";
+    import Footer from "./Footer.svelte";
     import {
         loginToSpotify,
         checkAuthCallback,
         logoutSpotify,
     } from "../lib/auth";
     import { fetchAllMetadata } from "../lib/metadata";
-
-    const DEFAULT_TAPE = `song: https://www.youtube.com/watch?v=giF04C6cMHE
-
----
-
-song: https://open.spotify.com/intl-de/track/2dje3ZBu1j1r0QfR7mtS0l?si=ddc9eb0165464ef1
-
----
-
-Servus ;)
-
----
-
-song: https://soundcloud.com/manndarin/leafar-legov-higher-power-1?in=manndarin/sets/various-2025-giegling
-
----
-
-# Taper Demo 🎵
-
-Create playlists by mixing text and song links.
-
----
-
-Double-click any cell to edit it.`;
+    import welcomeTape from "../assets/welcome-tape.md?raw";
 
     onMount(async () => {
         // Auth check
@@ -47,21 +25,35 @@ Double-click any cell to edit it.`;
                 appState.setCells(parseTape(decoded));
             } catch (e) {
                 console.error(e);
-                appState.setCells(parseTape(DEFAULT_TAPE));
+                appState.setCells(parseTape(welcomeTape));
             }
         } else {
-            appState.setCells(parseTape(DEFAULT_TAPE));
+            const savedContent = localStorage.getItem("taper-content");
+            if (savedContent) {
+                try {
+                    appState.setCells(parseTape(savedContent));
+                } catch (e) {
+                    console.error("Failed to parse saved content", e);
+                    appState.setCells(parseTape(welcomeTape));
+                }
+            } else {
+                appState.setCells(parseTape(welcomeTape));
+            }
         }
 
         // Fetch metadata for all songs
         fetchAllMetadata();
     });
 
-    // Update hash when cells change
+    // Update hash and local storage when cells change
     $effect(() => {
         if (appState.cells.length > 0) {
             const serialized = serializeCells(appState.cells);
             const encoded = btoa(unescape(encodeURIComponent(serialized)));
+            
+            // Save to local storage
+            localStorage.setItem("taper-content", serialized);
+            
             // Update hash without scrolling
             window.history.replaceState(null, "", "#" + encoded);
         }
@@ -92,6 +84,19 @@ Double-click any cell to edit it.`;
 
     function deleteCell(id: string) {
         appState.setCells(appState.cells.filter((c) => c.id !== id));
+    }
+
+    function downloadTape() {
+        const content = serializeCells(appState.cells);
+        const blob = new Blob([content], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "tape.md";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 
     function toggleRawMode() {
@@ -153,17 +158,17 @@ Double-click any cell to edit it.`;
 
 <div class="max-w-2xl mx-auto px-4 py-12 pb-32">
     <!-- Header / Controls -->
-    <div
-        class="flex justify-between items-center mb-8 opacity-50 hover:opacity-100 transition-opacity"
+    <header
+        class="flex items-center justify-between py-6 mb-10 border-b border-black/5"
     >
-        <h1 class="font-bold tracking-widest uppercase text-xs">
-            Taper / Playlist
+        <h1 class="text-3xl font-black tracking-tight flex items-center gap-3">
+            <span class="text-3xl">📼</span> taper
         </h1>
 
-        <div class="flex gap-4 items-center">
+        <div class="flex items-center gap-6">
             <button
-                class="text-xs uppercase font-bold hover:text-black transition-colors {isRawMode
-                    ? 'text-black underline'
+                class="text-sm font-medium text-gray-500 hover:text-black transition-colors {isRawMode
+                    ? 'text-black font-bold'
                     : ''}"
                 onclick={toggleRawMode}
             >
@@ -171,16 +176,30 @@ Double-click any cell to edit it.`;
             </button>
 
             <button
-                class="text-xs uppercase font-bold hover:text-green-600 transition-colors"
+                class="text-sm font-medium text-gray-500 hover:text-black transition-colors"
+                onclick={downloadTape}
+            >
+                Download
+            </button>
+
+            <button
+                class="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-wide transition-all
+                {appState.spotify.token
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-black text-white hover:bg-gray-800 shadow-lg hover:shadow-xl hover:-translate-y-0.5'}"
                 onclick={() =>
                     appState.spotify.token ? logoutSpotify() : loginToSpotify()}
             >
-                {appState.spotify.token
-                    ? "🟢 Spotify Connected"
-                    : "🔗 Connect Spotify"}
+                {#if appState.spotify.token}
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"
+                    ></span>
+                    Connected
+                {:else}
+                    Connect Spotify
+                {/if}
             </button>
         </div>
-    </div>
+    </header>
 
     {#if isRawMode}
         <textarea
@@ -229,6 +248,8 @@ Double-click any cell to edit it.`;
             {#if draggedIndex !== null && dragOverIndex === i && draggedIndex > i}
                 <div
                     class="h-20 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 my-2 flex items-center justify-center text-gray-400 text-sm font-medium animate-pulse"
+                    ondragover={(e) => handleDragOver(e, i)}
+                    ondrop={(e) => handleDrop(e, i)}
                 >
                     Place here
                 </div>
@@ -262,6 +283,8 @@ Double-click any cell to edit it.`;
             {#if draggedIndex !== null && dragOverIndex === i && draggedIndex < i}
                 <div
                     class="h-20 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 my-2 flex items-center justify-center text-gray-400 text-sm font-medium animate-pulse"
+                    ondragover={(e) => handleDragOver(e, i)}
+                    ondrop={(e) => handleDrop(e, i)}
                 >
                     Place here
                 </div>
@@ -315,4 +338,6 @@ Double-click any cell to edit it.`;
             </div>
         {/if}
     {/if}
+
+    <Footer />
 </div>

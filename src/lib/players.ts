@@ -130,6 +130,10 @@ export function initSoundCloudPlayer(cell: Cell) {
 
 export function initSpotifySdkPlayer() {
     if (!appState.spotify.token) return;
+    if (appState.spotify.player) return; // Idempotency check
+
+    // @ts-ignore
+    if (typeof Spotify === 'undefined') return;
 
     // @ts-ignore
     const player = new Spotify.Player({

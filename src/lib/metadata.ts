@@ -46,14 +46,44 @@ export async function fetchMetadata(cell: Cell) {
                     }
                 }
             } else {
-                // Use oEmbed for public info
-                const res = await fetch(`https://open.spotify.com/oembed?url=${encodeURIComponent(cell.content)}`);
-                const data = await res.json();
-                if (data.title) {
-                    updateCell(cell.id, {
-                        title: data.title,
-                        cover: data.thumbnail_url
-                    });
+                // Use song.link API for public metadata (includes artist)
+                try {
+                    const res = await fetch(
+                        `https://api.song.link/v1-alpha.1/links?url=${encodeURIComponent(cell.content)}`,
+                    );
+                    const data = await res.json();
+
+                    if (data.entitiesByUniqueId) {
+                        // Prefer Spotify entity, but take any if not found
+                        const entityKey =
+                            Object.keys(data.entitiesByUniqueId).find((key) =>
+                                key.startsWith("SPOTIFY_SONG"),
+                            ) || Object.keys(data.entitiesByUniqueId)[0];
+
+                        if (entityKey) {
+                            const entity = data.entitiesByUniqueId[entityKey];
+                            updateCell(cell.id, {
+                                title: `${entity.title} - ${entity.artistName}`,
+                                cover: entity.thumbnailUrl,
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.warn(
+                        "Songlink fetch failed, falling back to oEmbed",
+                        err,
+                    );
+                    // Fallback to oEmbed if song.link fails
+                    const res = await fetch(
+                        `https://open.spotify.com/oembed?url=${encodeURIComponent(cell.content)}`,
+                    );
+                    const data = await res.json();
+                    if (data.title) {
+                        updateCell(cell.id, {
+                            title: data.title,
+                            cover: data.thumbnail_url,
+                        });
+                    }
                 }
             }
         }

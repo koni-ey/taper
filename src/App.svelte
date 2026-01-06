@@ -29,6 +29,15 @@
             initSpotifySdkPlayer();
         };
     });
+
+    $effect(() => {
+        if (appState.spotify.token) {
+            // @ts-ignore
+            if (window.Spotify) {
+                initSpotifySdkPlayer();
+            }
+        }
+    });
 </script>
 
 <main class="min-h-screen bg-white text-black font-sans selection:bg-black selection:text-white">

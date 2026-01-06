@@ -4,7 +4,7 @@
     import { appState } from "../lib/state.svelte";
     import { startPlayer, togglePlayPause } from "../lib/playback";
     import { fetchMetadata } from "../lib/metadata";
-    import { Play, Pause, Trash2 } from "lucide-svelte";
+    import { Play, Pause, Trash2, ExternalLink } from "lucide-svelte";
 
     let {
         cell,
@@ -26,6 +26,9 @@
 
     let isCurrent = $derived(appState.currentIndex === index);
     let isPlaying = $derived(isCurrent && appState.isPlaying);
+    let isSpotifyDisabled = $derived(
+        cell.provider === "spotify" && !appState.spotify.token,
+    );
 
     $effect(() => {
         if (!isEditing) {
@@ -37,6 +40,8 @@
     });
 
     function handlePlay() {
+        if (isSpotifyDisabled) return;
+
         if (isCurrent) {
             togglePlayPause();
         } else {
@@ -81,7 +86,7 @@
 </script>
 
 <div
-    class="group relative mb-2 hover:bg-gray-50/50 p-2 -mx-2 rounded transition-colors duration-200"
+    class="group relative mb-1 hover:bg-gray-50/50 p-2 -mx-2 rounded transition-colors duration-200"
     ondblclick={() => {
         if (!isEditing) onEditStart();
     }}
@@ -142,19 +147,31 @@
                 </div>
             {:else if cell.type === "markdown"}
                 <div
-                    class="prose prose-slate max-w-none prose-p:my-2 prose-h1:text-2xl prose-h2:text-xl prose-img:rounded-lg"
+                    class="prose prose-slate max-w-none prose-p:my-1 prose-headings:mt-3 prose-headings:mb-1 prose-h1:text-2xl prose-h2:text-xl prose-img:rounded-lg [&>:first-child]:mt-0 [&>:last-child]:mb-0"
                 >
                     {@html marked.parse(cell.content)}
                 </div>
             {:else}
                 <!-- Song Card -->
                 <div
-                    class="flex items-center gap-4 p-4 border border-border rounded-xl bg-white transition-all duration-300 cursor-pointer
+                    class="group flex items-center gap-4 p-4 border border-border rounded-xl bg-white transition-all duration-300 cursor-pointer relative
                             {isCurrent
                         ? 'border-green-500 ring-1 ring-green-500/50 shadow-md scale-[1.01] bg-green-50/10'
-                        : 'hover:border-gray-300 hover:shadow-sm'}"
+                        : 'hover:border-gray-300 hover:shadow-sm'}
+                            {isSpotifyDisabled ? 'grayscale opacity-60' : ''}"
                     onclick={handlePlay}
                 >
+                    {#if isSpotifyDisabled}
+                        <div
+                            class="absolute inset-0 z-20 bg-gray-100/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl"
+                        >
+                            <span
+                                class="text-xs font-bold uppercase tracking-widest text-gray-800"
+                                >Connect Spotify to play</span
+                            >
+                        </div>
+                    {/if}
+
                     <!-- Cover -->
                     <div
                         class="w-16 h-16 bg-gray-100 border border-gray-200 rounded-lg flex-shrink-0 bg-cover bg-center relative overflow-hidden group/cover"
@@ -198,6 +215,18 @@
                             {:else}
                                 <span>{cell.provider}</span>
                             {/if}
+
+                            <a
+                                href={cell.content}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="text-gray-400 hover:text-black transition-colors"
+                                onclick={(e) => e.stopPropagation()}
+                                title="Open in new tab"
+                            >
+                                <ExternalLink size={12} />
+                            </a>
+
                             <span class="opacity-30">•</span>
                             <span
                                 class="truncate opacity-50 font-mono text-[10px]"
