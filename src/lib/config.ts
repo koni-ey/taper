@@ -1,5 +1,5 @@
-export const SPOTIFY_CLIENT_ID = '89be7a454358415ab1effc7dee2cf452';
-export const SPOTIFY_REDIRECT_URI = 'http://127.0.0.1:3000'; // Note: Must match exactly. May need to change if port changes.
+export const SPOTIFY_CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
+export const SPOTIFY_REDIRECT_URI = import.meta.env.VITE_SPOTIFY_REDIRECT_URI;
 
 export const SPOTIFY_SCOPES = [
     'streaming',

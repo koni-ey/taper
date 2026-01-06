@@ -1,160 +1,47 @@
-# Taper 🎵
+# Svelte + TS + Vite
 
-A minimal, URL-based playlist player. Create mixtapes by combining markdown text with song links from YouTube, Spotify, and SoundCloud.
+This template should help get you started developing with Svelte and TypeScript in Vite.
 
-**No backend required** – the entire playlist is encoded in the URL, making it easy to share and bookmark.
+## Recommended IDE Setup
 
-![Taper Screenshot](https://via.placeholder.com/800x400?text=Taper+Playlist+Player)
+[VS Code](https://code.visualstudio.com/) + [Svelte](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode).
 
-## Features
+## Need an official Svelte framework?
 
-- 🎵 **Multi-provider playback** - YouTube, Spotify, SoundCloud, MP3
-- 📝 **Markdown support** - Add formatted text between songs
-- 🔗 **Shareable URLs** - Entire playlist encoded in the URL hash
-- ✏️ **Colab-style editing** - Double-click to edit, drag to reorder
-- 🎨 **Unified card UI** - Consistent look across all providers
-- ⚡ **No backend** - Pure client-side, static hosting
+Check out [SvelteKit](https://github.com/sveltejs/kit#readme), which is also powered by Vite. Deploy anywhere with its serverless-first approach and adapt to various platforms, with out of the box support for TypeScript, SCSS, and Less, and easily-added support for mdsvex, GraphQL, PostCSS, Tailwind CSS, and more.
 
-## Quick Start
+## Technical considerations
 
-### Prerequisites
+**Why use this over SvelteKit?**
 
-- [Bun](https://bun.sh/) (fast JavaScript runtime)
+- It brings its own routing solution which might not be preferable for some users.
+- It is first and foremost a framework that just happens to use Vite under the hood, not a Vite app.
 
-### Installation
+This template contains as little as possible to get started with Vite + TypeScript + Svelte, while taking into account the developer experience with regards to HMR and intellisense. It demonstrates capabilities on par with the other `create-vite` templates and is a good starting point for beginners dipping their toes into a Vite + Svelte project.
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/taper.git
-cd taper
+Should you later need the extended capabilities and extensibility provided by SvelteKit, the template has been structured similarly to SvelteKit so that it is easy to migrate.
 
-# Install dependencies
-bun install
+**Why `global.d.ts` instead of `compilerOptions.types` inside `jsconfig.json` or `tsconfig.json`?**
 
-# Start development server
-bun run start
+Setting `compilerOptions.types` shuts out all other types not explicitly listed in the configuration. Using triple-slash references keeps the default TypeScript setting of accepting type information from the entire workspace, while also adding `svelte` and `vite/client` type information.
+
+**Why include `.vscode/extensions.json`?**
+
+Other templates indirectly recommend extensions via the README, but this file allows VS Code to prompt the user to install the recommended extension upon opening the project.
+
+**Why enable `allowJs` in the TS template?**
+
+While `allowJs: false` would indeed prevent the use of `.js` files in the project, it does not prevent the use of JavaScript syntax in `.svelte` files. In addition, it would force `checkJs: false`, bringing the worst of both worlds: not being able to guarantee the entire codebase is TypeScript, and also having worse typechecking for the existing JavaScript. In addition, there are valid use cases in which a mixed codebase may be relevant.
+
+**Why is HMR not preserving my local component state?**
+
+HMR state preservation comes with a number of gotchas! It has been disabled by default in both `svelte-hmr` and `@sveltejs/vite-plugin-svelte` due to its often surprising behavior. You can read the details [here](https://github.com/rixo/svelte-hmr#svelte-hmr).
+
+If you have state that's important to retain within a component, consider creating an external store which would not be replaced by HMR.
+
+```ts
+// store.ts
+// An extremely simple external store
+import { writable } from 'svelte/store'
+export default writable(0)
 ```
-
-Open http://127.0.0.1:3000 in your browser.
-
-### Building for Production
-
-```bash
-bun run build
-```
-
-This creates a minified `public/index.js` bundle.
-
-## Usage
-
-### Creating a Tape
-
-1. Click the **✎ (edit)** button to enter edit mode
-2. Double-click any cell to edit it
-3. Hover between cells to see **+ Text** / **+ Song** buttons
-4. Paste song URLs from YouTube, Spotify, or SoundCloud
-5. Click **👁️ (view)** to return to playback mode
-6. Click **🔗 Share** to copy the URL
-
-### Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Alt+Enter` | Exit cell editing |
-| Click song card | Play that song |
-| Drag ☰ handle | Reorder cells |
-
-### Supported Providers
-
-| Provider | URL Format |
-|----------|------------|
-| YouTube | `https://www.youtube.com/watch?v=...` or `https://youtu.be/...` |
-| Spotify | `https://open.spotify.com/track/...` |
-| SoundCloud | `https://soundcloud.com/artist/track` |
-| MP3 | Any URL ending in `.mp3` |
-
-### Spotify Authentication
-
-To play Spotify tracks, click the **Connect Spotify** button and authorize the app. This uses the secure PKCE OAuth flow (no secrets stored).
-
-## Project Structure
-
-```
-taper/
-├── src/
-│   ├── index.ts      # Main entry point
-│   ├── config.ts     # Constants (Spotify credentials, provider patterns)
-│   ├── types.ts      # TypeScript interfaces
-│   ├── auth.ts       # Spotify PKCE authentication
-│   ├── parser.ts     # Markdown-to-cells parsing
-│   ├── state.ts      # Global state management
-│   ├── dom.ts        # DOM element references
-│   ├── renderer.ts   # Cell rendering (cards, markdown)
-│   ├── players.ts    # Player initialization (YT, SC, Spotify)
-│   ├── playback.ts   # Playback controls
-│   └── editor.ts     # Edit mode logic
-├── public/
-│   ├── index.html    # Main HTML page
-│   ├── app.css       # Styles
-│   └── index.js      # Built bundle (generated)
-├── server.ts         # Simple Bun file server
-└── package.json
-```
-
-## How It Works
-
-1. **Tape Format**: Playlists are written in a simple markdown-like format:
-   ```
-   # My Playlist
-   
-   Some description text.
-   
-   ---
-   
-   song: https://open.spotify.com/track/abc123
-   song: https://www.youtube.com/watch?v=xyz
-   
-   More text here.
-   ```
-
-2. **URL Encoding**: The tape is base64-encoded and stored in the URL hash:
-   ```
-   http://127.0.0.1:3000/#IyBNeSBQbGF5bGlzdA...
-   ```
-
-3. **Player APIs**: External player SDKs are loaded dynamically:
-   - YouTube IFrame API
-   - SoundCloud Widget API
-   - Spotify Web Playback SDK
-
-## Adding a New Provider
-
-1. Add the provider pattern to `src/config.ts`:
-   ```typescript
-   { name: 'newprovider', pattern: /regex-here/, type: 'embed' }
-   ```
-
-2. Add initialization in `src/players.ts`
-
-3. Add playback controls in `src/playback.ts`
-
-## Development
-
-### Scripts
-
-| Command | Description |
-|---------|-------------|
-| `bun run start` | Start development server |
-| `bun run build` | Build production bundle |
-| `bun run dev` | Build + watch + serve |
-
-### Tech Stack
-
-- **Runtime**: [Bun](https://bun.sh/)
-- **Bundler**: Bun's built-in bundler
-- **Markdown**: [marked](https://www.npmjs.com/package/marked)
-- **Styling**: Vanilla CSS
-
-## License
-
-MIT
