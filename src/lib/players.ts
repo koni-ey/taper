@@ -197,3 +197,25 @@ export function initAudioPlayer(cell: Cell): HTMLAudioElement {
     appState.setPlayerInstance(cell.id, audio);
     return audio;
 }
+
+/**
+ * Pre-initializes player instances for all currently available songs.
+ * This helps circumvent mobile browser auto-play restrictions by ensuring
+ * the iframe/audio context exists before the first user tap.
+ */
+export function preInitializePlayers() {
+    if (!playerContainer) return;
+    
+    appState.cells.forEach(cell => {
+        if (cell.type === 'song' && !appState.playerInstances[cell.id]) {
+            if (cell.provider === 'youtube') {
+                const match = cell.content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
+                if (match) initYoutubePlayer(cell, match[1]);
+            } else if (cell.provider === 'soundcloud') {
+                initSoundCloudPlayer(cell);
+            } else if (cell.provider === 'mp3') {
+                initAudioPlayer(cell);
+            }
+        }
+    });
+}

@@ -11,6 +11,7 @@
         logoutSpotify,
     } from "../lib/auth";
     import { fetchAllMetadata } from "../lib/metadata";
+    import { preInitializePlayers } from "../lib/players";
     import welcomeTape from "../assets/welcome-tape.md?raw";
 
     onMount(async () => {
@@ -43,6 +44,7 @@
 
         // Fetch metadata for all songs
         fetchAllMetadata();
+        setTimeout(preInitializePlayers, 1000); // Give DOM time to settle before creating iframes
     });
 
     // Update hash and local storage when cells change
@@ -107,6 +109,7 @@
             try {
                 appState.setCells(parseTape(rawContent));
                 fetchAllMetadata();
+                setTimeout(preInitializePlayers, 1000);
             } catch (e) {
                 console.error("Failed to parse raw content", e);
             }

@@ -151,27 +151,31 @@ export function playPrev() {
 
 // Internal Provider Starters
 
-async function startYouTube(cell: Cell) {
+function startYouTube(cell: Cell) {
     let player = appState.playerInstances[cell.id];
     if (!player) {
         const match = cell.content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
         if (match) {
-            player = await initYoutubePlayer(cell, match[1]);
+            initYoutubePlayer(cell, match[1]).then(p => {
+                if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+                    p?.playVideo?.();
+                }
+            });
         }
-    }
-    
-    if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+    } else {
         (player as any)?.playVideo?.();
     }
 }
 
-async function startSoundCloud(cell: Cell) {
+function startSoundCloud(cell: Cell) {
     let player = appState.playerInstances[cell.id];
     if (!player) {
-        player = await initSoundCloudPlayer(cell);
-    }
-    
-    if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+        initSoundCloudPlayer(cell).then(p => {
+            if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+                p?.play?.();
+            }
+        });
+    } else {
         (player as any)?.play?.();
     }
 }
