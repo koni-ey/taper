@@ -151,20 +151,29 @@ export function playPrev() {
 
 // Internal Provider Starters
 
-function startYouTube(cell: Cell) {
+async function startYouTube(cell: Cell) {
     let player = appState.playerInstances[cell.id];
     if (!player) {
         const match = cell.content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
-        if (match) initYoutubePlayer(cell, match[1]);
-    } else {
-        (player as any).playVideo?.();
+        if (match) {
+            player = await initYoutubePlayer(cell, match[1]);
+        }
+    }
+    
+    if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+        (player as any)?.playVideo?.();
     }
 }
 
-function startSoundCloud(cell: Cell) {
+async function startSoundCloud(cell: Cell) {
     let player = appState.playerInstances[cell.id];
-    if (!player) initSoundCloudPlayer(cell);
-    else (player as any).play?.();
+    if (!player) {
+        player = await initSoundCloudPlayer(cell);
+    }
+    
+    if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+        (player as any)?.play?.();
+    }
 }
 
 function startSpotify(cell: Cell) {

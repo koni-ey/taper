@@ -23,120 +23,119 @@ export function setPlayerContainer(element: HTMLElement) {
 /**
  * Initializes a YouTube IFrame Player for a specific cell.
  */
-export function initYoutubePlayer(cell: Cell, videoId: string) {
-    if (!playerContainer) return;
+export function initYoutubePlayer(cell: Cell, videoId: string): Promise<any> {
+    return new Promise((resolve) => {
+        if (!playerContainer) return resolve(null);
 
-    let div = document.getElementById(`yt-player-${cell.id}`);
-    if (!div) {
-        div = document.createElement('div');
-        div.id = `yt-player-${cell.id}`;
-        playerContainer.appendChild(div);
-    }
+        let div = document.getElementById(`yt-player-${cell.id}`);
+        if (!div) {
+            div = document.createElement('div');
+            div.id = `yt-player-${cell.id}`;
+            playerContainer.appendChild(div);
+        }
 
-    // @ts-ignore
-    if (typeof YT === 'undefined' || !YT.Player) {
-        console.warn('YouTube API not loaded yet');
-        return;
-    }
+        // @ts-ignore
+        if (typeof YT === 'undefined' || !YT.Player) {
+            console.warn('YouTube API not loaded yet');
+            return resolve(null);
+        }
 
-    // @ts-ignore
-    const player = new YT.Player(div.id, {
-        height: '200',
-        width: '200',
-        videoId: videoId,
-        playerVars: {
-            controls: 0,
-            disablekb: 1,
-            fs: 0,
-            modestbranding: 1,
-            origin: window.location.origin
-        },
-        events: {
-            onReady: (event: any) => {
-                // Auto-fetch metadata if missing
-                const data = event.target.getVideoData();
-                if (data && data.title && (!cell.title || cell.title === 'Loading...')) {
-                    const idx = appState.cells.findIndex(c => c.id === cell.id);
-                    if (idx !== -1) {
-                        appState.cells[idx].title = data.title;
-                        appState.cells[idx].cover = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+        // @ts-ignore
+        const player = new YT.Player(div.id, {
+            height: '200',
+            width: '200',
+            videoId: videoId,
+            playerVars: {
+                controls: 0,
+                disablekb: 1,
+                fs: 0,
+                modestbranding: 1,
+                origin: window.location.origin
+            },
+            events: {
+                onReady: (event: any) => {
+                    // Auto-fetch metadata if missing
+                    const data = event.target.getVideoData();
+                    if (data && data.title && (!cell.title || cell.title === 'Loading...')) {
+                        const idx = appState.cells.findIndex(c => c.id === cell.id);
+                        if (idx !== -1) {
+                            appState.cells[idx].title = data.title;
+                            appState.cells[idx].cover = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
+                        }
+                    }
+
+                    appState.setPlayerInstance(cell.id, event.target);
+                    resolve(event.target);
+                },
+                onStateChange: (event: any) => {
+                    if (event.data === 0) { // 0 = YT.PlayerState.ENDED
+                        playNext();
                     }
                 }
-
-                // Auto-play if this is the current active cell
-                if (appState.cells[appState.currentIndex]?.id === cell.id && appState.isPlaying) {
-                    event.target.playVideo();
-                }
-            },
-            onStateChange: (event: any) => {
-                if (event.data === 0) { // 0 = YT.PlayerState.ENDED
-                    playNext();
-                }
             }
-        }
+        });
     });
-
-    appState.setPlayerInstance(cell.id, player);
 }
 
 /**
  * Initializes a SoundCloud Widget Player for a specific cell.
  * Uses a hidden iframe and the SoundCloud Widget API.
  */
-export function initSoundCloudPlayer(cell: Cell) {
-    if (!playerContainer) return;
+export function initSoundCloudPlayer(cell: Cell): Promise<any> {
+    return new Promise((resolve) => {
+        if (!playerContainer) return resolve(null);
 
-    let iframe = document.getElementById(`sc-player-${cell.id}`) as HTMLIFrameElement;
-    if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = `sc-player-${cell.id}`;
-        iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(cell.content)}&auto_play=false`;
-        iframe.allow = 'autoplay';
-        iframe.style.display = 'none';
-        playerContainer.appendChild(iframe);
-    }
-
-    // @ts-ignore
-    if (typeof SC === 'undefined' || !SC.Widget) return;
-
-    // @ts-ignore
-    const widget = SC.Widget(iframe);
-
-    // Bind event listeners
-    // @ts-ignore
-    widget.bind(SC.Widget.Events.READY, () => {
-        widget.getCurrentSound((sound: any) => {
-            if (sound) {
-                const idx = appState.cells.findIndex(c => c.id === cell.id);
-                if (idx !== -1) {
-                    appState.cells[idx].title = `${sound.title} - ${sound.user?.username || 'Unknown'}`;
-                    appState.cells[idx].cover = sound.artwork_url || '';
-                }
-            }
-        });
-
-        widget.getDuration((duration: number) => {
-            if (appState.cells[appState.currentIndex]?.id === cell.id) {
-                appState.progress.total = duration / 1000;
-            }
-        });
-
-        widget.play();
-    });
-
-    // @ts-ignore
-    widget.bind(SC.Widget.Events.PLAY_PROGRESS, (data: any) => {
-        if (appState.cells[appState.currentIndex]?.id === cell.id) {
-            appState.progress.current = data.currentPosition / 1000;
+        let iframe = document.getElementById(`sc-player-${cell.id}`) as HTMLIFrameElement;
+        if (!iframe) {
+            iframe = document.createElement('iframe');
+            iframe.id = `sc-player-${cell.id}`;
+            iframe.src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(cell.content)}&auto_play=false`;
+            iframe.allow = 'autoplay';
+            iframe.style.display = 'none';
+            playerContainer.appendChild(iframe);
         }
-    });
 
-    // @ts-ignore
-    widget.bind(SC.Widget.Events.FINISH, () => {
-        playNext();
-    });
+        // @ts-ignore
+        if (typeof SC === 'undefined' || !SC.Widget) return resolve(null);
 
-    appState.setPlayerInstance(cell.id, widget);
+        // @ts-ignore
+        const widget = SC.Widget(iframe);
+
+        // Bind event listeners
+        // @ts-ignore
+        widget.bind(SC.Widget.Events.READY, () => {
+            widget.getCurrentSound((sound: any) => {
+                if (sound) {
+                    const idx = appState.cells.findIndex(c => c.id === cell.id);
+                    if (idx !== -1) {
+                        appState.cells[idx].title = `${sound.title} - ${sound.user?.username || 'Unknown'}`;
+                        appState.cells[idx].cover = sound.artwork_url || '';
+                    }
+                }
+            });
+
+            widget.getDuration((duration: number) => {
+                if (appState.cells[appState.currentIndex]?.id === cell.id) {
+                    appState.progress.total = duration / 1000;
+                }
+            });
+
+            appState.setPlayerInstance(cell.id, widget);
+            resolve(widget);
+        });
+
+        // @ts-ignore
+        widget.bind(SC.Widget.Events.PLAY_PROGRESS, (data: any) => {
+            if (appState.cells[appState.currentIndex]?.id === cell.id) {
+                appState.progress.current = data.currentPosition / 1000;
+            }
+        });
+
+        // @ts-ignore
+        widget.bind(SC.Widget.Events.FINISH, () => {
+            playNext();
+        });
+    });
 }
 
 /**
