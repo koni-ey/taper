@@ -28,6 +28,7 @@ export function startPlayer(index: number) {
     stopCurrentPlayer();
     appState.setCurrentIndex(index);
     appState.setIsPlaying(true);
+    appState.progress = { current: 0, total: 0 }; // Reset progress immediately
 
     switch (cell.provider) {
         case 'youtube': startYouTube(cell); break;
@@ -158,11 +159,13 @@ function startYouTube(cell: Cell) {
         if (match) {
             initYoutubePlayer(cell, match[1]).then(p => {
                 if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+                    p?.seekTo?.(0, true);
                     p?.playVideo?.();
                 }
             });
         }
     } else {
+        (player as any)?.seekTo?.(0, true);
         (player as any)?.playVideo?.();
     }
 }
@@ -172,10 +175,12 @@ function startSoundCloud(cell: Cell) {
     if (!player) {
         initSoundCloudPlayer(cell).then(p => {
             if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+                p?.seekTo?.(0);
                 p?.play?.();
             }
         });
     } else {
+        (player as any)?.seekTo?.(0);
         (player as any)?.play?.();
     }
 }
@@ -183,12 +188,14 @@ function startSoundCloud(cell: Cell) {
 function startSpotify(cell: Cell) {
     if (!appState.spotify.token || !appState.spotify.isReady) return;
     const match = cell.content.match(/(?:track\/|track:)([\w]+)/);
+    // Spotify API starts from the beginning by default unless position_ms is specified
     if (match) playSpotifySdk(`spotify:track:${match[1]}`);
 }
 
 function startMp3(cell: Cell) {
     let player = appState.playerInstances[cell.id] as HTMLAudioElement;
     if (!player) player = initAudioPlayer(cell);
+    player.currentTime = 0;
     player.play();
 }
 
@@ -253,8 +260,23 @@ function startProgressLoop() {
                     current = audio.currentTime;
                     total = audio.duration;
                 }
+            } else if (cell.provider === 'soundcloud') {
+                const sc = player as any;
+                if (sc && sc.getPosition && sc.getDuration) {
+                    // SoundCloud widget methods are async with callbacks
+                    sc.getPosition((pos: number) => {
+                        sc.getDuration((dur: number) => {
+                            if (pos !== null && dur !== null) {
+                                appState.progress.current = pos / 1000;
+                                appState.progress.total = dur / 1000;
+                            }
+                        });
+                    });
+                    // We don't update current/total synchronously here, the callback will do it
+                    current = appState.progress.current;
+                    total = appState.progress.total;
+                }
             }
-             // Note: SoundCloud progress is handled via event bindings in initSoundCloudPlayer
         } catch(e) {}
 
         if (total > 0) {

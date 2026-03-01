@@ -28,6 +28,23 @@
         (window as any).onSpotifyWebPlaybackSDKReady = () => {
             initSpotifySdkPlayer();
         };
+
+        // Mobile audio context unlocker
+        const unlockAudio = () => {
+            const audio = new Audio();
+            audio.play().then(() => {
+                audio.pause();
+            }).catch(() => {
+                // Ignore errors if context was already unlocked or blocked
+            });
+            
+            // Remove listeners once triggered
+            document.removeEventListener('touchstart', unlockAudio);
+            document.removeEventListener('click', unlockAudio);
+        };
+        
+        document.addEventListener('touchstart', unlockAudio, { once: true });
+        document.addEventListener('click', unlockAudio, { once: true });
     });
 
     $effect(() => {
