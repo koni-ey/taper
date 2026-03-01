@@ -9,12 +9,21 @@ import { appState } from './state.svelte';
 import { initYoutubePlayer, initSoundCloudPlayer, initAudioPlayer } from './players';
 
 /**
+ * Checks if a cell is a playable song.
+ */
+function isPlayable(cell: Cell): boolean {
+    if (cell.type !== 'song') return false;
+    if (cell.provider === 'spotify' && !appState.spotify.token) return false;
+    return true;
+}
+
+/**
  * Starts playback of a specific cell at the given index.
  */
 export function startPlayer(index: number) {
     if (index < 0 || index >= appState.cells.length) return;
     const cell = appState.cells[index];
-    if (cell.type !== 'song') return;
+    if (!isPlayable(cell)) return;
 
     stopCurrentPlayer();
     appState.setCurrentIndex(index);
@@ -53,7 +62,7 @@ export function stopCurrentPlayer() {
  */
 export function togglePlayPause() {
     if (appState.currentIndex < 0) {
-        const firstSong = appState.cells.findIndex(c => c.type === 'song');
+        const firstSong = appState.cells.findIndex(c => isPlayable(c));
         if (firstSong >= 0) startPlayer(firstSong);
         return;
     }
@@ -108,7 +117,7 @@ export async function seekTo(seconds: number) {
  */
 export function playNext() {
     const songIndices = appState.cells
-        .map((c, i) => c.type === 'song' ? i : -1)
+        .map((c, i) => isPlayable(c) ? i : -1)
         .filter(i => i >= 0);
     
     const currentPos = songIndices.indexOf(appState.currentIndex);
@@ -129,7 +138,7 @@ export function playNext() {
  */
 export function playPrev() {
     const songIndices = appState.cells
-        .map((c, i) => c.type === 'song' ? i : -1)
+        .map((c, i) => isPlayable(c) ? i : -1)
         .filter(i => i >= 0);
     
     const currentPos = songIndices.indexOf(appState.currentIndex);
@@ -177,7 +186,7 @@ function startMp3(cell: Cell) {
  */
 async function playSpotifySdk(uri: string) {
     if (!appState.spotify.token || !appState.spotify.deviceId) return;
-    await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${appState.spotify.deviceId}`, {
+    const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${appState.spotify.deviceId}`, {
         method: 'PUT',
         headers: {
             'Authorization': `Bearer ${appState.spotify.token}`,
@@ -185,6 +194,12 @@ async function playSpotifySdk(uri: string) {
         },
         body: JSON.stringify({ uris: [uri] })
     });
+    
+    if (response.status === 401) {
+        appState.spotify.token = null;
+        localStorage.removeItem('spotify_access_token');
+        console.error('Spotify token expired during playback');
+    }
 }
 
 let progressFrame: number;

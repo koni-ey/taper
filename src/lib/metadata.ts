@@ -38,6 +38,13 @@ export async function fetchMetadata(cell: Cell) {
                     const res = await fetch(`https://api.spotify.com/v1/tracks/${match[1]}`, {
                         headers: { 'Authorization': `Bearer ${appState.spotify.token}` }
                     });
+                    
+                    if (res.status === 401) {
+                        appState.spotify.token = null;
+                        localStorage.removeItem('spotify_access_token');
+                        throw new Error('Spotify token expired');
+                    }
+                    
                     const data = await res.json();
                     if (data.name) {
                         const title = `${data.name} - ${data.artists.map((a: any) => a.name).join(', ')}`;

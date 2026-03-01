@@ -159,13 +159,13 @@
 <div class="max-w-2xl mx-auto px-4 py-12 pb-32">
     <!-- Header / Controls -->
     <header
-        class="flex items-center justify-between py-6 mb-10 border-b border-black/5"
+        class="flex flex-wrap items-center justify-between gap-4 py-6 mb-10 border-b border-black/5"
     >
         <h1 class="text-3xl font-black tracking-tight flex items-center gap-3">
             <span class="text-3xl">📼</span> taper
         </h1>
 
-        <div class="flex items-center gap-6">
+        <div class="flex flex-wrap items-center gap-3 sm:gap-6">
             <button
                 class="text-sm font-medium text-gray-500 hover:text-black transition-colors {isRawMode
                     ? 'text-black font-bold'

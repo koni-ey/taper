@@ -11,6 +11,6 @@
     });
 </script>
 
-<div bind:this={container} class="hidden-embed fixed top-[-9999px] left-[-9999px] w-0 h-0 overflow-hidden">
+<div bind:this={container} class="hidden-embed fixed bottom-0 right-0 w-1 h-1 opacity-0 pointer-events-none -z-10">
     <!-- Players will be injected here -->
 </div>

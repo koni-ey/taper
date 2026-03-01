@@ -24,7 +24,19 @@ export async function checkAuthCallback(): Promise<string | null> {
     if (!code) {
         const token = localStorage.getItem('spotify_access_token');
         if (token) {
-            appState.spotify.token = token;
+            try {
+                const res = await fetch('https://api.spotify.com/v1/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    appState.spotify.token = token;
+                } else {
+                    localStorage.removeItem('spotify_access_token');
+                }
+            } catch (e) {
+                console.warn('Failed to verify Spotify token:', e);
+                localStorage.removeItem('spotify_access_token');
+            }
         }
         return null;
     }
