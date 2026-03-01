@@ -25,6 +25,15 @@ export function startPlayer(index: number) {
     const cell = appState.cells[index];
     if (!isPlayable(cell)) return;
 
+    // Mobile Safari Hack: Force an immediate, synchronous play event in the
+    // exact same call stack as the user's click/touch event.
+    // This explicitly unlocks the audio context so that subsequent async
+    // calls (like fetch PUTs to Spotify or delayed iframe commands) are allowed.
+    try {
+        const dummy = new Audio();
+        dummy.play().then(() => dummy.pause()).catch(() => {});
+    } catch(e) {}
+
     stopCurrentPlayer();
     appState.setCurrentIndex(index);
     appState.setIsPlaying(true);
@@ -79,6 +88,12 @@ export function togglePlayPause() {
         else if (cell.provider === 'mp3') (player as HTMLAudioElement)?.pause();
         appState.setIsPlaying(false);
     } else {
+        // Unlock audio context for mobile resumes
+        try {
+            const dummy = new Audio();
+            dummy.play().then(() => dummy.pause()).catch(() => {});
+        } catch(e) {}
+
         if (cell.provider === 'youtube') (player as any)?.playVideo?.();
         else if (cell.provider === 'soundcloud') (player as any)?.play?.();
         else if (cell.provider === 'spotify') appState.spotify.player?.resume();
