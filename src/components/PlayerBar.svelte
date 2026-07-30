@@ -47,6 +47,7 @@
                     </button>
                     
                     <button class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center hover:scale-105 transition-transform"
+                            data-testid="playpause"
                             onclick={togglePlayPause}>
                         {#if appState.isPlaying}
                             <Pause size={24} />
@@ -63,7 +64,7 @@
 
             <!-- Progress -->
             <div class="flex items-center gap-3 text-xs text-gray-500 font-mono">
-                <span class="w-10 text-right">{formatTime(appState.progress.current)}</span>
+                <span data-testid="current-time" class="w-10 text-right">{formatTime(appState.progress.current)}</span>
                 
                 <div class="relative flex-1 h-4 flex items-center group">
                     <input 
@@ -75,13 +76,13 @@
                         class="absolute w-full h-full opacity-0 cursor-pointer z-10"
                     />
                     <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-black transition-all duration-100"
+                        <div data-testid="progress-fill" class="h-full bg-black transition-all duration-100"
                              style="width: {(appState.progress.current / (appState.progress.total || 1)) * 100}%">
                         </div>
                     </div>
                 </div>
 
-                <span class="w-10">{formatTime(appState.progress.total)}</span>
+                <span data-testid="total-time" class="w-10">{formatTime(appState.progress.total)}</span>
             </div>
         </div>
     </div>

@@ -21,6 +21,21 @@ export function setPlayerContainer(element: HTMLElement) {
 }
 
 /**
+ * Returns true if the given cell is the one currently selected for playback.
+ */
+function isCurrentCell(cellId: string): boolean {
+    return appState.cells[appState.currentIndex]?.id === cellId;
+}
+
+/**
+ * Caches in-flight SoundCloud widget initializations by cell id. Overlapping
+ * pre-initialization passes (or a tap that lands before the initial pass has
+ * finished) reuse the same pending promise instead of creating duplicate widgets
+ * or — worse — receiving a null instance and silently dropping playback.
+ */
+const soundcloudInitPromises = new Map<string, Promise<any>>();
+
+/**
  * Initializes a YouTube IFrame Player for a specific cell.
  */
 export function initYoutubePlayer(cell: Cell, videoId: string): Promise<any> {
@@ -82,8 +97,24 @@ export function initYoutubePlayer(cell: Cell, videoId: string): Promise<any> {
  * Uses a hidden iframe and the SoundCloud Widget API.
  */
 export function initSoundCloudPlayer(cell: Cell): Promise<any> {
-    return new Promise((resolve) => {
+    // If the widget already exists, reuse it directly.
+    if (appState.playerInstances[cell.id]) {
+        return Promise.resolve(appState.playerInstances[cell.id]);
+    }
+    // If an initialization is already in flight, reuse its promise so callers
+    // (e.g. a tap handler) await the real widget instead of getting null.
+    const pending = soundcloudInitPromises.get(cell.id);
+    if (pending) return pending;
+
+    const promise = new Promise<any>((resolve) => {
         if (!playerContainer) return resolve(null);
+
+        // Bail out early if the SoundCloud Widget API script has not loaded yet.
+        // We intentionally avoid creating an orphaned iframe here so that a later
+        // pre-initialization pass (triggered once the script loads) can create the
+        // widget cleanly and store its instance for synchronous, in-gesture playback.
+        // @ts-ignore
+        if (typeof SC === 'undefined' || !SC.Widget) return resolve(null);
 
         let iframe = document.getElementById(`sc-player-${cell.id}`) as HTMLIFrameElement;
         if (!iframe) {
@@ -96,10 +127,16 @@ export function initSoundCloudPlayer(cell: Cell): Promise<any> {
         }
 
         // @ts-ignore
-        if (typeof SC === 'undefined' || !SC.Widget) return resolve(null);
-
-        // @ts-ignore
         const widget = SC.Widget(iframe);
+
+        // Cache the track duration (seconds) once known so we can keep the
+        // progress bar's total in sync as the track becomes current.
+        let durationSec = 0;
+        const syncTotal = () => {
+            if (durationSec > 0 && isCurrentCell(cell.id)) {
+                appState.progress.total = durationSec;
+            }
+        };
 
         // Bind event listeners
         // @ts-ignore
@@ -115,8 +152,9 @@ export function initSoundCloudPlayer(cell: Cell): Promise<any> {
             });
 
             widget.getDuration((duration: number) => {
-                if (appState.cells[appState.currentIndex]?.id === cell.id) {
-                    appState.progress.total = duration / 1000;
+                if (duration) {
+                    durationSec = duration / 1000;
+                    syncTotal();
                 }
             });
 
@@ -124,10 +162,25 @@ export function initSoundCloudPlayer(cell: Cell): Promise<any> {
             resolve(widget);
         });
 
+        // When playback actually begins the duration is reliably available.
+        // @ts-ignore
+        widget.bind(SC.Widget.Events.PLAY, () => {
+            widget.getDuration((duration: number) => {
+                if (duration) {
+                    durationSec = duration / 1000;
+                    syncTotal();
+                }
+            });
+        });
+
+        // Drive progress from the widget's own event instead of polling the
+        // cross-origin iframe every animation frame (which floods the postMessage
+        // channel and yields stale/zero readings).
         // @ts-ignore
         widget.bind(SC.Widget.Events.PLAY_PROGRESS, (data: any) => {
-            if (appState.cells[appState.currentIndex]?.id === cell.id) {
+            if (isCurrentCell(cell.id)) {
                 appState.progress.current = data.currentPosition / 1000;
+                syncTotal();
             }
         });
 
@@ -136,6 +189,15 @@ export function initSoundCloudPlayer(cell: Cell): Promise<any> {
             playNext();
         });
     });
+
+    soundcloudInitPromises.set(cell.id, promise);
+    // Clear the in-flight cache entry once settled. A successful widget is tracked
+    // in playerInstances; a null result stays retryable on the next call.
+    promise.then(
+        () => soundcloudInitPromises.delete(cell.id),
+        () => soundcloudInitPromises.delete(cell.id),
+    );
+    return promise;
 }
 
 /**

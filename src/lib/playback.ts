@@ -34,6 +34,12 @@ export function startPlayer(index: number) {
         dummy.play().then(() => dummy.pause()).catch(() => {});
     } catch(e) {}
 
+    // Mobile fix for Spotify: the Web Playback SDK mounts a hidden media element
+    // that must be unlocked by a direct user gesture via activateElement(). Doing
+    // this synchronously inside the click/touch handler is what allows the very
+    // first tap to start playback (instead of needing play/pause/play).
+    try { appState.spotify.player?.activateElement?.(); } catch(e) {}
+
     stopCurrentPlayer();
     appState.setCurrentIndex(index);
     appState.setIsPlaying(true);
@@ -93,6 +99,7 @@ export function togglePlayPause() {
             const dummy = new Audio();
             dummy.play().then(() => dummy.pause()).catch(() => {});
         } catch(e) {}
+        try { appState.spotify.player?.activateElement?.(); } catch(e) {}
 
         if (cell.provider === 'youtube') (player as any)?.playVideo?.();
         else if (cell.provider === 'soundcloud') (player as any)?.play?.();
@@ -276,21 +283,10 @@ function startProgressLoop() {
                     total = audio.duration;
                 }
             } else if (cell.provider === 'soundcloud') {
-                const sc = player as any;
-                if (sc && sc.getPosition && sc.getDuration) {
-                    // SoundCloud widget methods are async with callbacks
-                    sc.getPosition((pos: number) => {
-                        sc.getDuration((dur: number) => {
-                            if (pos !== null && dur !== null) {
-                                appState.progress.current = pos / 1000;
-                                appState.progress.total = dur / 1000;
-                            }
-                        });
-                    });
-                    // We don't update current/total synchronously here, the callback will do it
-                    current = appState.progress.current;
-                    total = appState.progress.total;
-                }
+                // SoundCloud progress is driven by the widget's PLAY_PROGRESS /
+                // PLAY events (see initSoundCloudPlayer). Polling the cross-origin
+                // iframe here every animation frame floods its postMessage channel
+                // and produces stale/zero readings, so we deliberately skip it.
             }
         } catch(e) {}
 

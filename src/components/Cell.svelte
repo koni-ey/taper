@@ -170,6 +170,9 @@
             {:else}
                 <!-- Song Card -->
                 <div
+                    data-testid="song-card"
+                    data-song-index={index}
+                    data-provider={cell.provider}
                     class="group flex items-center gap-4 p-4 border border-border rounded-xl bg-white transition-all duration-300 cursor-pointer relative
                             {isCurrent
                         ? 'border-green-500 ring-1 ring-green-500/50 shadow-md scale-[1.01] bg-green-50/10'
