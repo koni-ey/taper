@@ -54,6 +54,20 @@ To use Spotify playback, you'll need to create an application in the [Spotify De
 
 *Note: Spotify playback requires a Spotify Premium account due to SDK limitations.*
 
+## iPhone / iPad playback
+
+Tap a track or Play to start audio. Safari may block an embedded provider's play request, especially when advancing to another provider without another tap. Taper shows a retry message instead of claiming a track is playing; tap Play again or use the track link. YouTube iframe playback may stop when Safari is backgrounded or the phone is locked. Websites cannot guarantee background playback of a YouTube embed or force it to resume without interaction; use **Open in YouTube** for listening outside Safari. Direct audio files can behave differently, subject to iOS and site settings.
+
+For a real-device regression check, use Safari on an iPhone (and, if possible, an iPad) with a tape containing two YouTube tracks, a SoundCloud track and a direct MP3:
+
+1. Start, pause, resume, seek and skip tracks. A pending start should say “Starting playback”; failed starts should restore Play and show a retry link.
+2. Start a track immediately after loading the tape, before the embeds finish loading. Quickly skip to another track; the old track should not start later.
+3. Switch apps and lock/unlock the screen during each provider. On return, check that the button reflects a stopped YouTube embed and that tapping Play retries; do not expect YouTube background playback.
+4. Let tracks finish and check whether the next provider starts. If Safari blocks the automatic transition, it should show a retry message.
+
+Desktop WebKit (including Playwright's iPhone-sized emulation) does not reproduce iOS media policies; these checks require an actual iOS Safari session.
+The mocked playback regression tests run with `npm run test:e2e` (Chromium by default; `PLAYWRIGHT_BROWSER=webkit npm run test:e2e` on a host with Playwright WebKit dependencies installed).
+
 ## 🛠️ Tech Stack
 
 - **Framework**: [Svelte 5](https://svelte.dev/)

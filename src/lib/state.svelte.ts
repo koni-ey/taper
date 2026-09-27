@@ -14,6 +14,12 @@ class AppState {
     
     /** Whether music is currently playing */
     isPlaying = $state<boolean>(false);
+
+    /** Waiting for the provider to confirm playback */
+    isStarting = $state<boolean>(false);
+
+    /** Playback failure shown beside the controls */
+    playbackError = $state<string | null>(null);
     
     /** Dictionary of player API instances (YouTube Widget, SC Widget, etc.) keyed by cell ID */
     playerInstances = $state<PlayerInstances>({});

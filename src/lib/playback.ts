@@ -14,7 +14,62 @@ import { initYoutubePlayer, initSoundCloudPlayer, initAudioPlayer } from './play
 function isPlayable(cell: Cell): boolean {
     if (cell.type !== 'song') return false;
     if (cell.provider === 'spotify' && !appState.spotify.token) return false;
-    return true;
+    return cell.provider === 'youtube' || cell.provider === 'soundcloud' || cell.provider === 'spotify' || cell.provider === 'mp3';
+}
+
+let startTimeout: number | undefined;
+let requestId = 0;
+
+function clearStart() {
+    window.clearTimeout(startTimeout);
+    startTimeout = undefined;
+    appState.isStarting = false;
+}
+
+function beginStart(cell: Cell) {
+    clearStart();
+    appState.playbackError = null;
+    appState.isStarting = true;
+    appState.setIsPlaying(false);
+    const attempt = ++requestId;
+    startTimeout = window.setTimeout(() => {
+        if (attempt === requestId) providerFailed(cell.id, 'Playback did not start. Tap Play to retry, or open the track directly.');
+    }, 12000);
+}
+
+function isCurrent(id: string) {
+    return appState.cells[appState.currentIndex]?.id === id;
+}
+
+function activateSpotify() {
+    try {
+        const activation = appState.spotify.player?.activateElement?.();
+        void activation?.catch?.(() => {}); // Automatic transitions may not have a user gesture.
+    } catch { /* The SDK reports autoplay_failed if activation is blocked. */ }
+}
+
+export function providerPlaying(id: string) {
+    if (!isCurrent(id)) return;
+    clearStart();
+    appState.playbackError = null;
+    if (!appState.isPlaying) {
+        appState.setIsPlaying(true);
+        startProgressLoop();
+    }
+}
+
+export function providerPaused(id: string) {
+    if (!isCurrent(id) || appState.isStarting) return;
+    appState.setIsPlaying(false);
+    stopProgressLoop();
+}
+
+export function providerFailed(id: string, message: string) {
+    if (!isCurrent(id)) return;
+    clearStart();
+    appState.setIsPlaying(false);
+    stopProgressLoop();
+    appState.playbackError = message;
 }
 
 /**
@@ -25,25 +80,15 @@ export function startPlayer(index: number) {
     const cell = appState.cells[index];
     if (!isPlayable(cell)) return;
 
-    // Mobile Safari Hack: Force an immediate, synchronous play event in the
-    // exact same call stack as the user's click/touch event.
-    // This explicitly unlocks the audio context so that subsequent async
-    // calls (like fetch PUTs to Spotify or delayed iframe commands) are allowed.
-    try {
-        const dummy = new Audio();
-        dummy.play().then(() => dummy.pause()).catch(() => {});
-    } catch(e) {}
-
-    // Mobile fix for Spotify: the Web Playback SDK mounts a hidden media element
-    // that must be unlocked by a direct user gesture via activateElement(). Doing
-    // this synchronously inside the click/touch handler is what allows the very
-    // first tap to start playback (instead of needing play/pause/play).
-    try { appState.spotify.player?.activateElement?.(); } catch(e) {}
-
     stopCurrentPlayer();
     appState.setCurrentIndex(index);
-    appState.setIsPlaying(true);
     appState.progress = { current: 0, total: 0 }; // Reset progress immediately
+
+    beginStart(cell);
+
+    // Spotify's iOS SDK needs activation directly inside the user's gesture.
+    // On automatic transitions there may be no gesture; the SDK reports autoplay_failed.
+    if (cell.provider === 'spotify') activateSpotify();
 
     switch (cell.provider) {
         case 'youtube': startYouTube(cell); break;
@@ -52,13 +97,15 @@ export function startPlayer(index: number) {
         case 'mp3': startMp3(cell); break;
     }
 
-    startProgressLoop();
 }
 
 /**
  * Stops (pauses) the currently playing track.
  */
 export function stopCurrentPlayer() {
+    ++requestId;
+    clearStart();
+    appState.setIsPlaying(false);
     stopProgressLoop();
     if (appState.currentIndex < 0) return;
     
@@ -68,7 +115,7 @@ export function stopCurrentPlayer() {
     try {
         if (cell.provider === 'youtube') (player as any)?.pauseVideo?.();
         else if (cell.provider === 'soundcloud') (player as any)?.pause?.();
-        else if (cell.provider === 'spotify') appState.spotify.player?.pause();
+        else if (cell.provider === 'spotify') void appState.spotify.player?.pause()?.catch?.(() => {});
         else if (cell.provider === 'mp3') (player as HTMLAudioElement)?.pause();
     } catch (e) { console.warn(e); }
 }
@@ -86,27 +133,27 @@ export function togglePlayPause() {
     const cell = appState.cells[appState.currentIndex];
     const player = appState.playerInstances[cell.id];
 
-    if (appState.isPlaying) {
-        stopProgressLoop();
-        if (cell.provider === 'youtube') (player as any)?.pauseVideo?.();
-        else if (cell.provider === 'soundcloud') (player as any)?.pause?.();
-        else if (cell.provider === 'spotify') appState.spotify.player?.pause();
-        else if (cell.provider === 'mp3') (player as HTMLAudioElement)?.pause();
-        appState.setIsPlaying(false);
+    if (appState.isPlaying || appState.isStarting) {
+        stopCurrentPlayer();
     } else {
-        // Unlock audio context for mobile resumes
-        try {
-            const dummy = new Audio();
-            dummy.play().then(() => dummy.pause()).catch(() => {});
-        } catch(e) {}
-        try { appState.spotify.player?.activateElement?.(); } catch(e) {}
+        beginStart(cell);
 
-        if (cell.provider === 'youtube') (player as any)?.playVideo?.();
-        else if (cell.provider === 'soundcloud') (player as any)?.play?.();
-        else if (cell.provider === 'spotify') appState.spotify.player?.resume();
-        else if (cell.provider === 'mp3') (player as HTMLAudioElement)?.play();
-        appState.setIsPlaying(true);
-        startProgressLoop();
+        if (cell.provider === 'youtube') {
+            if (player) (player as any).playVideo();
+            else startYouTube(cell);
+        } else if (cell.provider === 'soundcloud') {
+            if (player) (player as any).play();
+            else startSoundCloud(cell);
+        } else if (cell.provider === 'spotify') {
+            if (appState.spotify.player) {
+                activateSpotify();
+                void appState.spotify.player.resume().catch(() => providerFailed(cell.id, 'Spotify could not resume playback.'));
+            }
+            else providerFailed(cell.id, 'Spotify is not ready. Try again in a moment.');
+        } else if (cell.provider === 'mp3') {
+            const audio = (player as HTMLAudioElement) || initAudioPlayer(cell);
+            void audio.play().catch(() => providerFailed(cell.id, 'Safari blocked audio playback. Tap Play to retry.'));
+        }
     }
 }
 
@@ -151,7 +198,6 @@ export function playNext() {
     } else {
         // End of tape
         stopCurrentPlayer();
-        appState.setIsPlaying(false);
         appState.setCurrentIndex(-1);
     }
 }
@@ -180,12 +226,14 @@ function startYouTube(cell: Cell) {
         const match = cell.content.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([\w-]+)/);
         if (match) {
             initYoutubePlayer(cell, match[1]).then(p => {
-                if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+                if (appState.isStarting && isCurrent(cell.id) && p) {
                     p?.seekTo?.(0, true);
                     p?.playVideo?.();
+                } else if (!p && appState.isStarting && isCurrent(cell.id)) {
+                    providerFailed(cell.id, 'YouTube could not load. Tap Play to retry.');
                 }
             });
-        }
+        } else providerFailed(cell.id, 'Invalid YouTube URL.');
     } else {
         (player as any)?.seekTo?.(0, true);
         (player as any)?.playVideo?.();
@@ -196,9 +244,11 @@ function startSoundCloud(cell: Cell) {
     let player = appState.playerInstances[cell.id];
     if (!player) {
         initSoundCloudPlayer(cell).then(p => {
-            if (appState.isPlaying && appState.currentIndex === appState.cells.findIndex(c => c.id === cell.id)) {
+            if (appState.isStarting && isCurrent(cell.id) && p) {
                 p?.seekTo?.(0);
                 p?.play?.();
+            } else if (!p && appState.isStarting && isCurrent(cell.id)) {
+                providerFailed(cell.id, 'SoundCloud could not load. Tap Play to retry.');
             }
         });
     } else {
@@ -208,17 +258,21 @@ function startSoundCloud(cell: Cell) {
 }
 
 function startSpotify(cell: Cell) {
-    if (!appState.spotify.token || !appState.spotify.isReady) return;
+    if (!appState.spotify.token || !appState.spotify.isReady) {
+        providerFailed(cell.id, 'Spotify is not ready. Try again in a moment.');
+        return;
+    }
     const match = cell.content.match(/(?:track\/|track:)([\w]+)/);
     // Spotify API starts from the beginning by default unless position_ms is specified
-    if (match) playSpotifySdk(`spotify:track:${match[1]}`);
+    if (match) void playSpotifySdk(`spotify:track:${match[1]}`, cell.id);
+    else providerFailed(cell.id, 'Invalid Spotify URL.');
 }
 
 function startMp3(cell: Cell) {
     let player = appState.playerInstances[cell.id] as HTMLAudioElement;
     if (!player) player = initAudioPlayer(cell);
     player.currentTime = 0;
-    player.play();
+    void player.play().catch(() => providerFailed(cell.id, 'Safari blocked audio playback. Tap Play to retry.'));
 }
 
 /**
@@ -226,8 +280,9 @@ function startMp3(cell: Cell) {
  * The SDK itself doesn't have a direct 'load track' method that works for all devices,
  * so we use the 'play' endpoint with the specific device ID.
  */
-async function playSpotifySdk(uri: string) {
+async function playSpotifySdk(uri: string, id: string) {
     if (!appState.spotify.token || !appState.spotify.deviceId) return;
+    try {
     const response = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${appState.spotify.deviceId}`, {
         method: 'PUT',
         headers: {
@@ -242,20 +297,25 @@ async function playSpotifySdk(uri: string) {
         localStorage.removeItem('spotify_access_token');
         console.error('Spotify token expired during playback');
     }
+    if (!response.ok) providerFailed(id, `Spotify could not play this track (${response.status}).`);
+    } catch {
+        providerFailed(id, 'Spotify could not connect. Tap Play to retry.');
+    }
 }
 
-let progressFrame: number;
+let progressTimer: number | undefined;
 
 /**
- * High-frequency loop using requestAnimationFrame to update playback progress (current time/total time).
+ * Poll at a modest rate; requestAnimationFrame stops in background Safari tabs.
  * Polling is used because not all player APIs provide consistent progress events.
  */
 function startProgressLoop() {
-    cancelAnimationFrame(progressFrame);
+    stopProgressLoop();
     const update = async () => {
         if (!appState.isPlaying || appState.currentIndex < 0) return;
         
         const cell = appState.cells[appState.currentIndex];
+        const id = cell.id;
         const player = appState.playerInstances[cell.id];
         
         let current = 0;
@@ -271,6 +331,7 @@ function startProgressLoop() {
             } else if (cell.provider === 'spotify') {
                 if (appState.spotify.player) {
                     const state = await appState.spotify.player.getCurrentState();
+                    if (!isCurrent(id) || !appState.isPlaying) return;
                     if (state) {
                         current = state.position / 1000;
                         total = state.duration / 1000;
@@ -284,27 +345,51 @@ function startProgressLoop() {
                 }
             } else if (cell.provider === 'soundcloud') {
                 // SoundCloud progress is driven by the widget's PLAY_PROGRESS /
-                // PLAY events (see initSoundCloudPlayer). Polling the cross-origin
-                // iframe here every animation frame floods its postMessage channel
-                // and produces stale/zero readings, so we deliberately skip it.
+                // PLAY events. Polling the cross-origin iframe floods postMessage.
             }
         } catch(e) {}
 
-        if (total > 0) {
+        if (total > 0 && isCurrent(id) && appState.isPlaying) {
             appState.progress.current = current;
             appState.progress.total = total;
         }
 
-        if (appState.isPlaying) {
-            progressFrame = requestAnimationFrame(update);
-        }
     };
-    update();
+    void update();
+    progressTimer = window.setInterval(() => { void update(); }, 1000);
 }
 
 /**
  * Stops the progress polling loop.
  */
 function stopProgressLoop() {
-    cancelAnimationFrame(progressFrame);
+    window.clearInterval(progressTimer);
+    progressTimer = undefined;
+}
+
+let youtubeWasBackgrounded = false;
+
+/** Safari may suspend embedded media without delivering an iframe event while hidden. */
+export function syncPlaybackOnReturn() {
+    if (document.hidden) {
+        youtubeWasBackgrounded = appState.isPlaying && appState.cells[appState.currentIndex]?.provider === 'youtube';
+        return;
+    }
+    if (appState.currentIndex < 0) return;
+    const cell = appState.cells[appState.currentIndex];
+    const player = appState.playerInstances[cell.id];
+    if (cell.provider === 'youtube') {
+        try {
+            const state = (player as any)?.getPlayerState?.();
+            if (state === 0 && appState.isPlaying) playNext();
+            else if (state === 2 || state === -1) {
+                if (appState.isPlaying) providerPaused(cell.id);
+                if (youtubeWasBackgrounded && !appState.isStarting) {
+                    appState.playbackError = 'Safari stopped YouTube in the background. Tap Play to resume, or open in YouTube.';
+                }
+            }
+        } catch { /* The iframe may have been unloaded while Safari was suspended. */ }
+    }
+    youtubeWasBackgrounded = false;
+    if (cell.provider === 'mp3' && appState.isPlaying && (player as HTMLAudioElement)?.paused) providerPaused(cell.id);
 }

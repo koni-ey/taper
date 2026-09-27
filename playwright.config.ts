@@ -19,14 +19,15 @@ export default defineConfig({
     projects: [
         {
             name: 'desktop-chromium',
-            use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+            use: { ...devices['Desktop Chrome'] },
             testMatch: /soundcloud-progress\.spec\.ts/,
         },
         {
             // Emulates a mobile browser (touch + small viewport) to exercise the
             // mobile autoplay-unlock code paths.
             name: 'mobile-chromium',
-            use: { ...devices['Pixel 5'], channel: 'chrome' },
+            use: { ...devices['Pixel 5'] },
+            testMatch: /(mobile-playback|playback)\.spec\.ts/,
         },
     ],
     webServer: {

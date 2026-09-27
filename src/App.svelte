@@ -5,9 +5,20 @@
     import { onMount } from 'svelte';
     import { initSpotifySdkPlayer, preInitializePlayers } from './lib/players';
     import { appState } from './lib/state.svelte';
+    import { syncPlaybackOnReturn } from './lib/playback';
 
     onMount(() => {
         // Load external scripts
+        (window as any).onYouTubeIframeAPIReady = () => {
+            appState.setYoutubeApiReady(true);
+            window.dispatchEvent(new Event('taper-youtube-ready'));
+            preInitializePlayers();
+        };
+
+        (window as any).onSpotifyWebPlaybackSDKReady = () => {
+            initSpotifySdkPlayer();
+        };
+
         const yt = document.createElement('script');
         yt.src = 'https://www.youtube.com/iframe_api';
         document.head.appendChild(yt);
@@ -24,32 +35,13 @@
         sp.src = 'https://sdk.scdn.co/spotify-player.js';
         document.body.appendChild(sp);
 
-        // Global callbacks
-        (window as any).onYouTubeIframeAPIReady = () => {
-            appState.setYoutubeApiReady(true);
-            preInitializePlayers();
+        document.addEventListener('visibilitychange', syncPlaybackOnReturn);
+        window.addEventListener('pageshow', syncPlaybackOnReturn);
+        return () => {
+            document.removeEventListener('visibilitychange', syncPlaybackOnReturn);
+            window.removeEventListener('pageshow', syncPlaybackOnReturn);
         };
 
-        (window as any).onSpotifyWebPlaybackSDKReady = () => {
-            initSpotifySdkPlayer();
-        };
-
-        // Mobile audio context unlocker
-        const unlockAudio = () => {
-            const audio = new Audio();
-            audio.play().then(() => {
-                audio.pause();
-            }).catch(() => {
-                // Ignore errors if context was already unlocked or blocked
-            });
-            
-            // Remove listeners once triggered
-            document.removeEventListener('touchstart', unlockAudio);
-            document.removeEventListener('click', unlockAudio);
-        };
-        
-        document.addEventListener('touchstart', unlockAudio, { once: true });
-        document.addEventListener('click', unlockAudio, { once: true });
     });
 
     $effect(() => {

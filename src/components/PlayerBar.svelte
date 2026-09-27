@@ -42,25 +42,40 @@
 
                 <!-- Controls -->
                 <div class="flex items-center gap-4">
-                    <button class="text-gray-600 hover:text-black" onclick={playPrev}>
+                    <button aria-label="Previous track" class="text-gray-600 hover:text-black" onclick={playPrev}>
                         <SkipBack size={24} />
                     </button>
                     
                     <button class="w-12 h-12 rounded-full bg-black text-white flex items-center justify-center hover:scale-105 transition-transform"
                             data-testid="playpause"
+                            aria-label={appState.isPlaying || appState.isStarting ? 'Pause' : 'Play'}
                             onclick={togglePlayPause}>
-                        {#if appState.isPlaying}
+                        {#if appState.isPlaying || appState.isStarting}
                             <Pause size={24} />
                         {:else}
                             <Play size={24} class="ml-1" />
                         {/if}
                     </button>
                     
-                    <button class="text-gray-600 hover:text-black" onclick={playNext}>
+                    <button aria-label="Next track" class="text-gray-600 hover:text-black" onclick={playNext}>
                         <SkipForward size={24} />
                     </button>
                 </div>
             </div>
+
+            {#if appState.isStarting}
+                <p class="text-xs text-gray-500" role="status">Starting playback…</p>
+            {/if}
+            {#if appState.playbackError}
+                <p class="text-xs text-red-700" role="alert">
+                    {appState.playbackError}
+                    {#if currentCell?.provider === 'youtube'}
+                        <a href={currentCell.content} target="_blank" rel="noopener noreferrer" class="underline ml-1">Open in YouTube</a>
+                    {:else if currentCell?.content}
+                        <a href={currentCell.content} target="_blank" rel="noopener noreferrer" class="underline ml-1">Open track</a>
+                    {/if}
+                </p>
+            {/if}
 
             <!-- Progress -->
             <div class="flex items-center gap-3 text-xs text-gray-500 font-mono">

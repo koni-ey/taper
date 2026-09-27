@@ -25,7 +25,7 @@
     let editContent = $state(cell.content);
 
     let isCurrent = $derived(appState.currentIndex === index);
-    let isPlaying = $derived(isCurrent && appState.isPlaying);
+    let isPlaying = $derived(isCurrent && (appState.isPlaying || appState.isStarting));
     let isSpotifyDisabled = $derived(
         cell.provider === "spotify" && !appState.spotify.token,
     );
